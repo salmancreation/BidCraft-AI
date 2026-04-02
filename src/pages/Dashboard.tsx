@@ -11,25 +11,42 @@ import {
   Clock,
   Target,
   CheckCircle2,
-  WandSparkles
+  WandSparkles,
+  X,
+  Plus,
+  LogIn
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import ReactMarkdown from "react-markdown";
 import { generateProposal } from "../services/gemini";
 import { ProposalData, VoiceTone, ExperienceLevel } from "../types";
 import { cn } from "../lib/utils";
+import { auth, db, signInWithGoogle } from "../lib/firebase";
+import { onAuthStateChanged, User } from "firebase/auth";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
 export function Dashboard() {
   const location = useLocation();
   const navigate = useNavigate();
   const jobDescription = location.state?.jobDescription || "";
 
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [proposal, setProposal] = useState<ProposalData | null>(null);
   const [tone, setTone] = useState<VoiceTone>("Friendly");
-  const [skills, setSkills] = useState("React, TypeScript, Tailwind CSS, UI/UX Strategy");
+  const [skillInput, setSkillInput] = useState("");
+  const [skills, setSkills] = useState<string[]>(["React", "TypeScript", "Tailwind CSS", "UI/UX Strategy"]);
   const [experience, setExperience] = useState<ExperienceLevel>("Senior (5-8 years)");
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const handleGenerate = async () => {
     if (!jobDescription) {
@@ -38,12 +55,32 @@ export function Dashboard() {
     }
     setLoading(true);
     try {
-      const data = await generateProposal(jobDescription, tone, skills, experience);
+      const data = await generateProposal(jobDescription, tone, skills.join(", "), experience);
       setProposal(data);
     } catch (error) {
       console.error("Generation failed:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!user || !proposal) return;
+    setSaving(true);
+    try {
+      await addDoc(collection(db, "proposals"), {
+        ...proposal,
+        uid: user.uid,
+        jobDescription,
+        tone,
+        skills,
+        createdAt: serverTimestamp()
+      });
+      alert("Proposal saved successfully!");
+    } catch (error) {
+      console.error("Save failed:", error);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -55,6 +92,18 @@ export function Dashboard() {
     if (proposal?.coverLetter) {
       navigator.clipboard.writeText(proposal.coverLetter);
     }
+  };
+
+  const addSkill = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (skillInput.trim() && !skills.includes(skillInput.trim())) {
+      setSkills([...skills, skillInput.trim()]);
+      setSkillInput("");
+    }
+  };
+
+  const removeSkill = (skillToRemove: string) => {
+    setSkills(skills.filter(s => s !== skillToRemove));
   };
 
   return (
@@ -83,9 +132,22 @@ export function Dashboard() {
             <p className="text-on-surface-variant text-sm mt-1">Refine your profile and tone to generate the perfect bid.</p>
           </div>
           <div className="flex gap-2">
-            <button className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-surface-container-low hover:bg-surface-container-high transition-colors">
-              <Save className="w-4 h-4" /> Save Draft
-            </button>
+            {!user ? (
+              <button 
+                onClick={signInWithGoogle}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-surface-container-low hover:bg-surface-container-high transition-colors"
+              >
+                <LogIn className="w-4 h-4" /> Login to Save
+              </button>
+            ) : (
+              <button 
+                onClick={handleSave}
+                disabled={saving}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-surface-container-low hover:bg-surface-container-high transition-colors disabled:opacity-50"
+              >
+                <Save className="w-4 h-4" /> {saving ? "Saving..." : "Save Draft"}
+              </button>
+            )}
             <button 
               onClick={handleGenerate}
               className="flex items-center gap-2 px-6 py-2 text-sm font-bold rounded-lg bg-gradient-to-r from-primary to-primary-container text-white shadow-lg shadow-primary/20 hover:brightness-105 active:scale-95 transition-all"
@@ -127,12 +189,30 @@ export function Dashboard() {
           <div className="lg:col-span-2 bg-surface-container-lowest p-6 rounded-xl shadow-sm border border-outline-variant/10 grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant/70">Top Skills</label>
-              <textarea 
-                value={skills}
-                onChange={(e) => setSkills(e.target.value)}
-                className="w-full bg-surface-container-low border-0 focus:ring-2 focus:ring-primary/10 rounded-lg text-sm p-3 min-h-[100px] resize-none" 
-                placeholder="e.g. React, UI/UX Design..."
-              />
+              <div className="space-y-3">
+                <form onSubmit={addSkill} className="flex gap-2">
+                  <input 
+                    type="text"
+                    value={skillInput}
+                    onChange={(e) => setSkillInput(e.target.value)}
+                    className="flex-1 bg-surface-container-low border-0 focus:ring-2 focus:ring-primary/10 rounded-lg text-sm p-2" 
+                    placeholder="Add a skill..."
+                  />
+                  <button type="submit" className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-white transition-colors">
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </form>
+                <div className="flex flex-wrap gap-2">
+                  {skills.map(skill => (
+                    <span key={skill} className="flex items-center gap-1 px-3 py-1 bg-surface-container-high rounded-full text-xs font-medium text-on-surface">
+                      {skill}
+                      <button onClick={() => removeSkill(skill)} className="hover:text-error transition-colors">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
             <div className="space-y-4">
               <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant/70">Experience Level</label>
@@ -171,8 +251,10 @@ export function Dashboard() {
               </button>
             </div>
             <div className="p-8 flex-grow">
-              <div className="prose prose-sm max-w-none text-on-surface-variant leading-relaxed whitespace-pre-wrap">
-                {proposal?.coverLetter || "Generating..."}
+              <div className="prose prose-sm max-w-none text-on-surface-variant leading-relaxed whitespace-pre-wrap markdown-body">
+                <ReactMarkdown>
+                  {proposal?.coverLetter || "Generating..."}
+                </ReactMarkdown>
               </div>
             </div>
           </div>

@@ -1,0 +1,56 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile information and preferences",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "defaultSkills": { "type": "array", "items": { "type": "string" } },
+        "defaultExperience": { "type": "string" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Proposal": {
+      "title": "Proposal",
+      "description": "A generated Upwork proposal",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "jobDescription": { "type": "string" },
+        "coverLetter": { "type": "string" },
+        "suggestedRate": { "type": "string" },
+        "estimatedTime": { "type": "string" },
+        "strategyToWin": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          }
+        },
+        "confidenceScore": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "tone": { "type": "string" },
+        "skills": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["uid", "coverLetter", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile documents"
+    },
+    "/proposals/{proposalId}": {
+      "schema": "Proposal",
+      "description": "Saved proposals"
+    }
+  }
+}

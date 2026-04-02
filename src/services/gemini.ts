@@ -22,9 +22,14 @@ export async function generateProposal(
       Skills: ${skills}
       Experience Level: ${experience}
       Tone: ${tone}
+      
+      CRITICAL INSTRUCTIONS:
+      1. COVER LETTER: Use Markdown for formatting. Include bullet points for skills/achievements. Make it highly readable, professional, and personalized. Avoid "AI-isms".
+      2. SUGGESTED RATE: Be realistic. Research current Upwork market rates for ${experience} level in this niche. Provide a specific range (e.g., "$45–$55/hr").
+      3. STRATEGY: Provide 3 actionable, tactical points to win this specific client.
     `,
     config: {
-      systemInstruction: "You are a professional Upwork proposal writer. Return your response in valid JSON format.",
+      systemInstruction: "You are a world-class Upwork proposal consultant. You specialize in high-conversion, human-like writing and strategic bidding. You always return valid JSON.",
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
