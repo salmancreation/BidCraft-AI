@@ -16,7 +16,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { generateProposal } from "../services/openai";
+import { generateProposal } from "../services/gemini";
 import { ProposalData, VoiceTone, ExperienceLevel } from "../types";
 import { cn } from "../lib/utils";
 
